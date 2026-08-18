@@ -4,7 +4,8 @@ import logging
 import pytz
 import threading
 from dateutil import parser
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
@@ -22,7 +23,7 @@ class CalendarScheduler:
         load_dotenv()
         self.state_manager = state_manager
         self.calendar_id = os.getenv('CALENDAR_ID')
-        self.credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'credentials.json')
+        self.token_path = os.getenv('GOOGLE_OAUTH_TOKEN', 'token.json')
         
         self.timezone_str = os.getenv('TIMEZONE', 'America/New_York')
         self.tz = pytz.timezone(self.timezone_str)
@@ -33,14 +34,18 @@ class CalendarScheduler:
         self.uploader = DriveUploader()
 
     def _authenticate_google_calendar(self):
+        creds = None
         try:
-            if not os.path.exists(self.credentials_path):
-                logger.warning(f"Credentials file not found at {self.credentials_path}. Calendar API won't initialize.")
-                return None
-            creds = service_account.Credentials.from_service_account_file(
-                self.credentials_path, scopes=SCOPES)
+            if os.path.exists(self.token_path):
+                creds = Credentials.from_authorized_user_file(self.token_path, SCOPES)
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    logger.error(f"Missing or invalid {self.token_path}. Run get_token.py first.")
+                    return None
             service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
-            logger.info("Successfully authenticated with Google Calendar API.")
+            logger.info("Successfully authenticated with Google Calendar API via OAuth Token.")
             return service
         except Exception as e:
             logger.error(f"Failed to authenticate with Google Calendar: {e}")

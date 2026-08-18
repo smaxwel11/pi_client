@@ -1,6 +1,7 @@
 import os
 import logging
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -11,20 +12,24 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 class DriveUploader:
     def __init__(self):
-        self.credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'credentials.json')
-        # ID of the specific Drive Folder you shared with the Service Account
+        self.token_path = os.getenv('GOOGLE_OAUTH_TOKEN', 'token.json')
+        # ID of the specific Drive Folder you shared
         self.folder_id = os.getenv('DRIVE_FOLDER_ID')
         self.service = self._authenticate_drive()
 
     def _authenticate_drive(self):
+        creds = None
         try:
-            if not os.path.exists(self.credentials_path):
-                logger.warning(f"Credentials file not found at {self.credentials_path}. Drive API won't initialize.")
-                return None
-            creds = service_account.Credentials.from_service_account_file(
-                self.credentials_path, scopes=SCOPES)
+            if os.path.exists(self.token_path):
+                creds = Credentials.from_authorized_user_file(self.token_path, SCOPES)
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    logger.error(f"Missing or invalid {self.token_path}. Run get_token.py on your PC first.")
+                    return None
             service = build('drive', 'v3', credentials=creds, cache_discovery=False)
-            logger.info("Successfully authenticated with Google Drive API.")
+            logger.info("Successfully authenticated with Google Drive API via OAuth Token.")
             return service
         except Exception as e:
             logger.error(f"Failed to authenticate with Google Drive: {e}")
