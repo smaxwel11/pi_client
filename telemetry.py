@@ -13,6 +13,7 @@ class TelemetryClient:
         load_dotenv()
         self.hub_url = os.getenv('CENTRAL_HUB_URL', 'http://localhost:3000')
         self.device_id = os.getenv('DEVICE_ID', 'Pi_Room_Unknown')
+        self.api_secret = os.getenv('API_SECRET', '')
         self.state_manager = state_manager
         self._stop_event = threading.Event()
         self.thread = None
@@ -28,8 +29,12 @@ class TelemetryClient:
                     'timestamp': time.time()
                 }
                 
+                headers = {
+                    'Authorization': f'Bearer {self.api_secret}'
+                }
+
                 # Send to Central Hub
-                response = requests.post(f"{self.hub_url}/api/telemetry", json=payload, timeout=5)
+                response = requests.post(f"{self.hub_url}/api/telemetry", json=payload, headers=headers, timeout=5)
                 
                 if response.status_code == 200:
                     logger.debug("Telemetry heartbeat sent successfully.")

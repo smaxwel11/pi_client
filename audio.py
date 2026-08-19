@@ -36,10 +36,12 @@ class AudioRecorder:
             'ffmpeg',
             '-y',                      # Overwrite output files if they exist
             '-f', 'alsa',              # Input format
-            '-i', self.device,         # Input device (USB Mic)
+            '-i', 'plughw:1,0',         # Input device (USB Mic)
+            '-ac', '1',
+            '-ar', '16000',
             '-af', 'acompressor,loudnorm', # Audio filters for dictation clarity
             '-c:a', 'libmp3lame',      # MP3 encoder (streamable/safe for power loss)
-            '-b:a', '128k',            # Bitrate
+            '-b:a', '64k',            # Bitrate
             filepath
         ]
 
