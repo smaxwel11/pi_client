@@ -23,9 +23,11 @@ class AudioRecorder:
             return None
 
         # Sanitize class name for safe filenames
+        room_number = os.getenv('DEVICE_ID', 'UnknownRoom')
+        safe_room_number = "".join([c for c in room_number if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ", "_")
         safe_class_name = "".join([c for c in class_name if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ", "_")
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"{safe_class_name}_{timestamp}_Part{part_number}.mp3"
+        date_str = time.strftime("%m-%d")
+        filename = f"{safe_room_number}_{safe_class_name}_{date_str}_Part{part_number}.mp3"
         filepath = os.path.join(self.output_dir, filename)
         self.current_filepath = filepath
 
