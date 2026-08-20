@@ -1,0 +1,15 @@
+[Unit]
+Description=Classroom Audio Recorder Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/pi_client
+ExecStart=/home/pi/pi_client/venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
