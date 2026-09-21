@@ -9,6 +9,7 @@ from fault_tolerance import StateManager
 from telemetry import TelemetryClient
 from scheduler import CalendarScheduler
 from storage import DriveUploader
+from watchdog import ConnectivityWatchdog
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,15 +34,21 @@ def wait_for_ntp_sync():
         time.sleep(5)
 
 def recover_orphaned_files():
-    """Uploads any files left on the SD card due to a sudden power loss."""
+    """Uploads any files left on the SD card due to a sudden power loss or Wi-Fi zombie state."""
     uploader = DriveUploader()
     rec_dir = os.getenv('RECORDING_DIR', './recordings')
     if os.path.exists(rec_dir):
         for file in os.listdir(rec_dir):
             if file.endswith('.mp3'):
                 filepath = os.path.join(rec_dir, file)
-                logger.warning(f"Found orphaned recording from crash: {filepath}. Uploading immediately...")
-                uploader.upload_file(filepath)
+                logger.warning(f"Found orphaned recording: {filepath}. Uploading immediately...")
+                # storage.py's upload_file automatically parses the room/class for dynamic routing
+                # and strictly deletes the local file ONLY on a successful return.
+                success = uploader.upload_file(filepath)
+                if success:
+                    logger.info(f"Successfully recovered and uploaded {file}.")
+                else:
+                    logger.error(f"Failed to recover {file}. Will retry on next boot.")
 
 def main():
     logger.info("Starting Pi Classroom Recorder Daemon")
@@ -50,6 +57,10 @@ def main():
 
     logger.info("Initializing fault tolerance DB...")
     state_manager = StateManager()
+    
+    logger.info("Starting Wi-Fi Watchdog...")
+    watchdog = ConnectivityWatchdog(state_manager)
+    watchdog.start()
     
     logger.info("Checking for orphaned files to upload...")
     recover_orphaned_files()
